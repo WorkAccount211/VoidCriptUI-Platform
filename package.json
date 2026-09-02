@@ -1,0 +1,52 @@
+{
+  "name": "voidcriptui-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api,worker,tg,discord -c blue,green,magenta,yellow,cyan \"npm:dev:web\" \"npm:dev:api\" \"npm:dev:worker\" \"npm:dev:telegram\" \"npm:dev:discord\"",
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:worker": "npm --workspace apps/worker run dev",
+    "dev:telegram": "npm --workspace apps/telegram-bot run dev",
+    "dev:discord": "npm --workspace apps/discord-bot run dev",
+    "build": "npm run build:web && npm run build:api && npm run build:worker && npm run build:telegram && npm run build:discord",
+    "build:web": "npm --workspace apps/web run build",
+    "build:api": "npm --workspace apps/api run build",
+    "build:worker": "npm --workspace apps/worker run build",
+    "build:telegram": "npm --workspace apps/telegram-bot run build",
+    "build:discord": "npm --workspace apps/discord-bot run build",
+    "start:web": "npm --workspace apps/web run start",
+    "start:api": "npm --workspace apps/api run start",
+    "start:worker": "npm --workspace apps/worker run start",
+    "start:telegram": "npm --workspace apps/telegram-bot run start",
+    "start:discord": "npm --workspace apps/discord-bot run start",
+    "db:push": "npm --workspace packages/db run db:push",
+    "db:seed": "npm --workspace packages/db run db:seed",
+    "db:studio": "npm --workspace packages/db exec prisma studio",
+    "db:generate": "npm --workspace packages/db run db:generate",
+    "typecheck": "npm run typecheck:web && npm run typecheck:api && npm run typecheck:worker && npm run typecheck:telegram && npm run typecheck:discord",
+    "typecheck:web": "npm --workspace apps/web run typecheck",
+    "typecheck:api": "npm --workspace apps/api run typecheck",
+    "typecheck:worker": "npm --workspace apps/worker run typecheck",
+    "typecheck:telegram": "npm --workspace apps/telegram-bot run typecheck",
+    "typecheck:discord": "npm --workspace apps/discord-bot run typecheck",
+    "qa": "npm --workspace apps/worker run qa",
+    "test": "npm --workspace apps/api run test",
+    "format": "prettier --write .",
+    "check:env": "node scripts/check-env.mjs",
+    "generate:secrets": "powershell -ExecutionPolicy Bypass -File scripts/generate-secrets.ps1",
+    "install:pm2": "npm install -g pm2",
+    "check:syntax": "npm run typecheck:web && npm run typecheck:api && npm run typecheck:worker && npm run typecheck:telegram && npm run typecheck:discord"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "prettier": "^3.6.2",
+    "dotenv": "^16.6.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

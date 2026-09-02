@@ -1,0 +1,483 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  USER
+  VERIFIED_USER
+  CONTRIBUTOR
+  PLUGIN_DEVELOPER
+  MODERATOR
+  ADMIN
+  OWNER
+}
+
+enum CommunityType {
+  ISSUE
+  QUESTION
+  SUGGESTION
+}
+
+enum ThreadStatus {
+  NEW
+  UNDER_REVIEW
+  CONFIRMED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  REJECTED
+  DUPLICATE
+}
+
+enum PluginStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  PUBLISHED
+  SUSPENDED
+  REJECTED
+}
+
+enum ChallengeType {
+  TELEGRAM
+  DISCORD
+  TOTP
+  RECOVERY
+  PASSWORD_RESET
+  ACCOUNT_LINK
+}
+
+model User {
+  id                String             @id @default(cuid())
+  uid               String             @unique
+  email             String             @unique
+  username          String             @unique
+  displayName       String
+  passwordHash      String
+  emailVerifiedAt   DateTime?
+  suspendedUntil    DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  profile           Profile?
+  roles             UserRole[]
+  sessions          Session[]
+  totp              TotpCredential?
+  recoveryCodes     RecoveryCode[]
+  telegram          TelegramLink?
+  discord           DiscordLink?
+  challenges        AuthChallenge[]
+  notifications     Notification[]
+  bookmarks         Bookmark[]
+  drafts            Draft[]
+  threads           Thread[]            @relation("ThreadAuthor")
+  replies           Reply[]             @relation("ReplyAuthor")
+  votes             Vote[]
+  plugins           Plugin[]
+  bans              Ban[]
+  emailVerifications EmailVerification[]
+  passwordResets    PasswordReset[]
+  reports           Report[]
+}
+
+model Profile {
+  id             String  @id @default(cuid())
+  userId         String  @unique
+  bio            String?
+  avatarUrl      String?
+  bannerUrl      String?
+  language       String  @default("en")
+  theme          String  @default("dark")
+  timezone       String  @default("UTC")
+  publicProfile  Boolean @default(true)
+  sidebarOrder   Json?
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  system      Boolean          @default(false)
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  userAgent  String?
+  ipHash     String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model TotpCredential {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  secretEncrypted String
+  enabled         Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+}
+
+model TelegramLink {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  telegramUserId String  @unique
+  username      String?
+  linkedAt      DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DiscordLink {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  discordUserId String   @unique
+  username      String?
+  linkedAt      DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuthChallenge {
+  id         String        @id @default(cuid())
+  tokenHash  String        @unique
+  userId     String
+  type       ChallengeType
+  codeHash   String?
+  expiresAt  DateTime
+  consumedAt DateTime?
+  approvedAt DateTime?
+  attempts   Int           @default(0)
+  metadata   Json?
+  createdAt  DateTime      @default(now())
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, expiresAt])
+}
+
+model EmailVerification {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  kind      String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String
+  target    String
+  title     String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, target])
+}
+
+model Draft {
+  id        String        @id @default(cuid())
+  userId    String
+  kind      CommunityType
+  title     String?
+  body      String?
+  updatedAt DateTime      @updatedAt
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind])
+}
+
+model Thread {
+  id             String        @id @default(cuid())
+  type           CommunityType
+  title          String
+  body           String
+  status         ThreadStatus   @default(NEW)
+  authorId       String
+  version        String?
+  severity       String?
+  acceptedReplyId String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  author         User          @relation("ThreadAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  replies        Reply[]
+  votes          Vote[]
+  attachments    Attachment[]
+  tags           ThreadTag[]
+
+  @@index([type, status, createdAt])
+}
+
+model Reply {
+  id        String   @id @default(cuid())
+  threadId  String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author    User     @relation("ReplyAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id      String      @id @default(cuid())
+  name    String      @unique
+  threads ThreadTag[]
+}
+
+model ThreadTag {
+  threadId String
+  tagId    String
+  thread   Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, tagId])
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  userId    String
+  threadId  String
+  value     Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, threadId])
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  threadId   String?
+  uploaderId String
+  url        String
+  filename   String
+  mimeType   String
+  size       Int
+  createdAt  DateTime @default(now())
+  thread     Thread?  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+}
+
+model Plugin {
+  id            String       @id @default(cuid())
+  slug          String       @unique
+  name          String
+  description   String
+  version       String
+  status        PluginStatus  @default(DRAFT)
+  authorId      String
+  sourceUrl     String?
+  compatibility String?
+  permissions   Json?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  author        User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reviews       PluginReview[]
+}
+
+model PluginReview {
+  id         String   @id @default(cuid())
+  pluginId   String
+  reviewerId String
+  decision   String
+  note       String?
+  createdAt  DateTime @default(now())
+  plugin     Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+}
+
+model Ban {
+  id           String    @id @default(cuid())
+  userId       String
+  reason       String
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  createdByUid String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  targetType String
+  targetId   String
+  reason     String
+  status     String   @default("OPEN")
+  createdAt  DateTime @default(now())
+  reporter   User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorUid  String?
+  action    String
+  category  String
+  targetUid String?
+  requestId String?
+  result    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorUid, createdAt])
+}
+
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model NavigationItem {
+  id           String  @id @default(cuid())
+  label        String
+  href         String
+  icon         String?
+  order        Int     @default(0)
+  enabled      Boolean @default(true)
+  minimumRole  String?
+}
+
+model FeatureFlag {
+  key         String  @id
+  enabled     Boolean @default(false)
+  description String?
+}
+
+model RepositorySnapshot {
+  id         String   @id @default(cuid())
+  repoUrl    String
+  ref        String
+  commitSha  String?
+  fileCount  Int      @default(0)
+  manifest   Json?
+  createdAt  DateTime @default(now())
+  successful Boolean  @default(false)
+}
+
+model QaRun {
+  id        String   @id @default(cuid())
+  commitSha String?
+  status    String
+  score     Float?
+  findings  Json
+  createdAt DateTime @default(now())
+}
+
+model RuntimeReport {
+  id             String   @id @default(cuid())
+  userId         String?
+  libraryVersion String?
+  commitSha      String?
+  environment    Json?
+  results        Json
+  createdAt      DateTime @default(now())
+}
+
+model PerformanceSample {
+  id         String   @id @default(cuid())
+  metric     String
+  value      Float
+  unit       String
+  source     String
+  version    String?
+  commitSha  String?
+  createdAt  DateTime @default(now())
+
+  @@index([metric, createdAt])
+}
+
+model Job {
+  id         String   @id @default(cuid())
+  type       String
+  status     String
+  progress   Int      @default(0)
+  payload    Json?
+  error      String?
+  createdAt  DateTime @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  @@index([status, createdAt])
+}

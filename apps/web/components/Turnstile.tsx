@@ -1,0 +1,4 @@
+'use client';
+import {useEffect} from 'react';
+declare global { interface Window { turnstile?: any } }
+export default function Turnstile({onToken}:{onToken:(token:string)=>void}){const siteKey=process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;useEffect(()=>{if(!siteKey)return;const script=document.createElement('script');script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;script.onload=()=>{const el=document.getElementById('turnstile-container');if(el&&window.turnstile)window.turnstile.render(el,{sitekey:siteKey,callback:onToken,'expired-callback':()=>onToken(''),'error-callback':()=>onToken('')})};document.head.appendChild(script);return()=>{script.remove()};},[siteKey,onToken]);if(!siteKey)return <div className="rounded-xl border border-white/8 bg-white/[.02] p-3 text-xs muted">Turnstile site key is not configured.</div>;return <div id="turnstile-container" className="min-h-[65px]"/>}
